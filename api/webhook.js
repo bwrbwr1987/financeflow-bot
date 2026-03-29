@@ -138,6 +138,24 @@ module.exports = async (req, res) => {
         await replyToLine(replyToken, msg);
         continue;
       }
+if (low === 'cancel' || low === 'ยกเลิก' || low === 'ลบ') {
+  try {
+    const data = await getSupabase('transactions?select=id&order=id.desc&limit=1');
+    if (data && data.length > 0) {
+      const lastId = data[0].id;
+      await fetch(`${SUPA_URL}/rest/v1/transactions?id=eq.${lastId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      });
+      await replyToLine(replyToken, '✅ Last transaction deleted!');
+    } else {
+      await replyToLine(replyToken, '❌ No transactions to delete.');
+    }
+  } catch(e) {
+    await replyToLine(replyToken, '❌ Could not delete. Try again.');
+  }
+  continue;
+}
 
       if (low === 'help' || low === 'ช่วย') {
         const msg =
