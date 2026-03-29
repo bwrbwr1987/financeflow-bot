@@ -6,7 +6,7 @@ const SUPA_URL = 'https://lubaxbzmwvzcxtxdfjzo.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1YmF4Ynptd3Z6Y3h0eGRmanpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjQ2NzMsImV4cCI6MjA5MDMwMDY3M30.uVEPCWxgOf4x1Z-Q4MgM4Z3aVMZ495SD5uv_00PYRbc';
 
 const CATS = {
-  salary:'salary',bonus:'salary',freelance:'freelance',invest:'investment',
+  salary:'salary',bonus:'salary',freelance:'freelance',sell:'other_income',sold:'other_income',
   stock:'investment',dividend:'investment',gift:'gift',
   food:'food',eat:'food',lunch:'food',dinner:'food',breakfast:'food',
   coffee:'food',cafe:'food',restaurant:'food',snack:'food',
