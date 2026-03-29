@@ -433,7 +433,7 @@ if (low === 'category' || low === 'categories' || low === 'show category' || low
       // Help
       if (low === 'help' || low === 'ช่วย') {
         await replyToLine(replyToken,
-          `🤖 FinanceFlow Bot\n──────────────\nLog income:\n• salary 50000\n• freelance 5000 design\n• sell car 300000\n\nLog expense:\n• food 350 lunch\n• grab 45 to office\n• rent 8500\n\nCommands:\n• summary - see totals\n• cancel - delete last entry\n• help - this menu`
+          `🤖 FinanceFlow Commands:\n──────────────\n• food 350 lunch → log expense\n• salary 50000 → log income\n• summary → see balance\n• category → show all categories\n• cancel → delete last entry\n• help → this menu`
         );
         continue;
       }
