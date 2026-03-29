@@ -88,6 +88,15 @@ async function replyToLine(replyToken, message) {
   });
 }
 
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
 module.exports = async (req, res) => {
   if (req.method === 'GET') {
     return res.status(200).send('FinanceFlow LINE Bot is running! 🚀');
@@ -97,30 +106,96 @@ module.exports = async (req, res) => {
     return res.status(405).send('Method not allowed');
   }
 
-  // Verify LINE signature
-  const signature = req.headers['x-line-signature'];
-  const body = JSON.stringify(req.body);
-  const hash = crypto.createHmac('sha256', CHANNEL_SECRET).update(body).digest('base64');
-  if (signature !== hash) {
-    return res.status(403).send('Invalid signature');
+  try {
+    const rawBody = await getRawBody(req);
+    const signature = req.headers['x-line-signature'];
+    const hash = crypto.createHmac('sha256', CHANNEL_SECRET).update(rawBody).digest('base64');
+
+    if (signature !== hash) {
+      return res.status(403).send('Invalid signature');
+    }
+
+    const body = JSON.parse(rawBody);
+    const events = body.events || [];
+
+    for (const event of events) {
+      if (event.type !== 'message' || event.message.type !== 'text') continue;
+
+      const text = event.message.text.trim();
+      const replyToken = event.replyToken;
+      const low = text.toLowerCase();
+
+      if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
+        const s = await getSummary();
+        const msg =
+          `📊 Your Summary\n` +
+          `──────────────\n` +
+          `💚 Income:  ฿${fmt(s.income)}\n` +
+          `🔴 Expense: ฿${fmt(s.expense)}\n` +
+          `⚖️ Balance: ฿${fmt(s.balance)}\n` +
+          `💰 Savings: ${s.savings}%\n` +
+          `📝 Total:   ${s.count} transactions`;
+        await replyToLine(replyToken, msg);
+        continue;
+      }
+
+      if (low === 'help' || low === 'ช่วย') {
+        const msg =
+          `🤖 FinanceFlow Bot\n` +
+          `──────────────\n` +
+          `Log income:\n` +
+          `• salary 50000\n` +
+          `• freelance 5000 design\n\n` +
+          `Log expense:\n` +
+          `• food 350 lunch\n` +
+          `• grab 45 to office\n` +
+          `• rent 8500\n\n` +
+          `Commands:\n` +
+          `• summary - see totals\n` +
+          `• help - show this menu`;
+        await replyToLine(replyToken, msg);
+        continue;
+      }
+
+      const parsed = parseMessage(text);
+      if (!parsed.amount) {
+        await replyToLine(replyToken,
+          `❓ I couldn't find an amount.\n\nTry:\n• food 350 lunch\n• salary 50000\n\nType "help" for commands.`
+        );
+        continue;
+      }
+
+      try {
+        await insertSupabase({
+          type: parsed.type,
+          amount: parsed.amount,
+          category: parsed.category,
+          detail: parsed.detail,
+          date: new Date().toISOString()
+        });
+
+        const s = await getSummary();
+        const emoji = parsed.type === 'income' ? '💚' : '🔴';
+        const catLabel = CAT_LABELS[parsed.category] || parsed.category;
+
+        const msg =
+          `${emoji} ${parsed.type === 'income' ? 'Income' : 'Expense'} saved!\n` +
+          `──────────────\n` +
+          `💵 Amount:   ฿${fmt(parsed.amount)}\n` +
+          `📁 Category: ${catLabel}\n` +
+          `📝 Note:     ${parsed.detail}\n` +
+          `──────────────\n` +
+          `⚖️ Balance:  ฿${fmt(s.balance)}`;
+
+        await replyToLine(replyToken, msg);
+      } catch(e) {
+        await replyToLine(replyToken, `❌ Save failed. Please try again.`);
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch(e) {
+    console.error(e);
+    res.status(200).send('OK');
   }
-
-  const events = req.body.events || [];
-
-  for (const event of events) {
-    if (event.type !== 'message' || event.message.type !== 'text') continue;
-
-    const text = event.message.text.trim();
-    const replyToken = event.replyToken;
-    const low = text.toLowerCase();
-
-    // Summary command
-    if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
-      const s = await getSummary();
-      const msg =
-        `📊 Your Summary\n` +
-        `──────────────\n` +
-        `💚 Income:  ฿${fmt(s.income)}\n` +
-        `🔴 Expense: ฿${fmt(s.expense)}\n` +
-        `⚖️ Balance: ฿${fmt(s.balance)}\n` +
-        `💰 Savings: ${​​​​​​​​​​​​​​​​
+};
