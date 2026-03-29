@@ -6,18 +6,156 @@ const SUPA_URL = 'https://lubaxbzmwvzcxtxdfjzo.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1YmF4Ynptd3Z6Y3h0eGRmanpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjQ2NzMsImV4cCI6MjA5MDMwMDY3M30.uVEPCWxgOf4x1Z-Q4MgM4Z3aVMZ495SD5uv_00PYRbc';
 
 const BUILT_IN_CATS = {
-  salary:'salary',bonus:'salary',freelance:'freelance',invest:'investment',
-  stock:'investment',dividend:'investment',gift:'gift',sell:'other_income',sold:'other_income',
+  // ── Income (English) ──
+  salary:'salary',bonus:'salary',wage:'salary',paycheck:'salary',
+  freelance:'freelance',commission:'freelance',
+  invest:'investment',stock:'investment',dividend:'investment',fund:'investment',
+  gift:'gift',present:'gift',sell:'other_income',sold:'other_income',
+  receive:'other_income',received:'other_income',
+
+  // ── Income (Thai) ──
+  'เงินเดือน':'salary',
+  'โบนัส':'salary',
+  'ค่าจ้าง':'salary',
+  'ฟรีแลนซ์':'freelance',
+  'งานฟรี':'freelance',
+  'ค่านายหน้า':'freelance',
+  'ลงทุน':'investment',
+  'หุ้น':'investment',
+  'กองทุน':'investment',
+  'ปันผล':'investment',
+  'ของขวัญ':'gift',
+  'ขาย':'other_income',
+  'ได้รับ':'other_income',
+  'รับเงิน':'other_income',
+
+  // ── Food (English) ──
   food:'food',eat:'food',lunch:'food',dinner:'food',breakfast:'food',
   coffee:'food',cafe:'food',restaurant:'food',snack:'food',
+  pizza:'food',sushi:'food',drink:'food',beverage:'food',
+
+  // ── Food (Thai) ──
+  'อาหาร':'food',
+  'ข้าว':'food',
+  'กับข้าว':'food',
+  'ข้าวเช้า':'food',
+  'ข้าวกลางวัน':'food',
+  'ข้าวเย็น':'food',
+  'อาหารเช้า':'food',
+  'อาหารกลางวัน':'food',
+  'อาหารเย็น':'food',
+  'กาแฟ':'food',
+  'ชา':'food',
+  'ขนม':'food',
+  'ของกิน':'food',
+  'ร้านอาหาร':'food',
+  'เบียร์':'food',
+  'เครื่องดื่ม':'food',
+  'ชาบู':'food',
+  'หมูกะทะ':'food',
+
+  // ── Transport (English) ──
   transport:'transport',taxi:'transport',grab:'transport',bts:'transport',
-  mrt:'transport',bus:'transport',uber:'transport',fuel:'transport',petrol:'transport',
+  mrt:'transport',bus:'transport',uber:'transport',fuel:'transport',
+  petrol:'transport',gas:'transport',parking:'transport',toll:'transport',
+  flight:'transport',train:'transport',
+
+  // ── Transport (Thai) ──
+  'แท็กซี่':'transport',
+  'รถแท็กซี่':'transport',
+  'แกร็บ':'transport',
+  'รถเมล์':'transport',
+  'รถไฟฟ้า':'transport',
+  'บีทีเอส':'transport',
+  'เอ็มอาร์ที':'transport',
+  'ค่ารถ':'transport',
+  'น้ำมัน':'transport',
+  'ค่าน้ำมัน':'transport',
+  'ค่าทางด่วน':'transport',
+  'ที่จอดรถ':'transport',
+  'ค่าจอดรถ':'transport',
+  'วินมอเตอร์ไซค์':'transport',
+  'มอเตอร์ไซค์':'transport',
+  'เครื่องบิน':'transport',
+  'ตั๋วเครื่องบิน':'transport',
+
+  // ── Shopping (English) ──
   shop:'shopping',buy:'shopping',clothes:'shopping',mall:'shopping',
-  electric:'utilities',water:'utilities',internet:'utilities',bill:'utilities',phone:'utilities',
-  health:'health',doctor:'health',hospital:'health',medicine:'health',gym:'health',
+  market:'shopping',fashion:'shopping',shoes:'shopping',bag:'shopping',
+
+  // ── Shopping (Thai) ──
+  'ซื้อ':'shopping',
+  'ช้อปปิ้ง':'shopping',
+  'เสื้อผ้า':'shopping',
+  'เสื้อ':'shopping',
+  'กางเกง':'shopping',
+  'รองเท้า':'shopping',
+  'กระเป๋า':'shopping',
+  'ห้างสรรพสินค้า':'shopping',
+  'ตลาด':'shopping',
+  'ของใช้':'shopping',
+
+  // ── Utilities (English) ──
+  electric:'utilities',water:'utilities',internet:'utilities',
+  bill:'utilities',phone:'utilities',mobile:'utilities',wifi:'utilities',
+
+  // ── Utilities (Thai) ──
+  'ค่าไฟ':'utilities',
+  'ค่าน้ำ':'utilities',
+  'ค่าไฟฟ้า':'utilities',
+  'ค่าประปา':'utilities',
+  'ค่าอินเทอร์เน็ต':'utilities',
+  'ค่าโทรศัพท์':'utilities',
+  'ค่าโทร':'utilities',
+  'ค่าเน็ต':'utilities',
+  'ค่าวายฟาย':'utilities',
+  'ค่าบิล':'utilities',
+
+  // ── Health (English) ──
+  health:'health',doctor:'health',hospital:'health',
+  medicine:'health',pharmacy:'health',gym:'health',dental:'health',
+
+  // ── Health (Thai) ──
+  'หมอ':'health',
+  'โรงพยาบาล':'health',
+  'คลินิก':'health',
+  'ยา':'health',
+  'ค่ายา':'health',
+  'ค่าหมอ':'health',
+  'ทันตกรรม':'health',
+  'ฟิตเนส':'health',
+  'ออกกำลังกาย':'health',
+  'ร้านขายยา':'health',
+
+  // ── Entertainment (English) ──
   movie:'entertainment',game:'entertainment',netflix:'entertainment',
-  spotify:'entertainment',concert:'entertainment',
+  spotify:'entertainment',concert:'entertainment',travel:'entertainment',
+
+  // ── Entertainment (Thai) ──
+  'หนัง':'entertainment',
+  'ดูหนัง':'entertainment',
+  'คอนเสิร์ต':'entertainment',
+  'เกม':'entertainment',
+  'ท่องเที่ยว':'entertainment',
+  'เที่ยว':'entertainment',
+  'ท่องเที่ยว':'entertainment',
+  'สวนสนุก':'entertainment',
+  'ร้องคาราโอเกะ':'entertainment',
+  'คาราโอเกะ':'entertainment',
+
+  // ── Rent/Housing (English) ──
   rent:'rent',condo:'rent',house:'rent',housing:'rent',
+  mortgage:'rent',dormitory:'rent',
+
+  // ── Rent/Housing (Thai) ──
+  'ค่าเช่า':'rent',
+  'ค่าคอนโด':'rent',
+  'ค่าห้อง':'rent',
+  'ค่าบ้าน':'rent',
+  'หอพัก':'rent',
+  'อพาร์ตเมนต์':'rent',
+  'ผ่อนบ้าน':'rent',
+  'ผ่อนคอนโด':'rent',
 };
 
 const CAT_LABELS = {
@@ -112,7 +250,7 @@ async function parseMessage(text) {
   }
 
   // Check built-in keywords
-  let type = low.match(/\b(income|salary|receive|got|freelance|invest|bonus|dividend|sell|sold|ขาย|ได้รับ|รับ)\b/) ? 'income' : 'expense';
+  let type = (low.includes('เงินเดือน') || low.includes('โบนัส') || low.includes('ขาย') || low.includes('ได้รับ') || low.includes('รับเงิน') || low.includes('ฟรีแลนซ์') || low.includes('หุ้น') || low.includes('ปันผล') || low.includes('ของขวัญ') || low.match(/\b(income|salary|receive|got|freelance|invest|bonus|dividend|sell|sold)\b/)) ? 'income' : 'expense';
   const m = text.match(/[\d,]+(\.\d+)?/);
   const amount = m ? parseFloat(m[0].replace(/,/g, '')) : null;
   let category = null;
