@@ -30,7 +30,7 @@ const CAT_LABELS = {
 
 function parseMessage(text) {
   const low = text.toLowerCase();
-  let type = low.match(/\b(income|salary|receive|got|freelance|invest|bonus|dividend)\b/) ? 'income' : 'expense';
+  let type = low.match(/\b(income|salary|receive|got|freelance|invest|bonus|dividend|sell|sold|receive|ขาย|ได้รับ|รับ)\b/) ? 'income' : 'expense';
   const m = text.match(/[\d,]+(\.\d+)?/);
   const amount = m ? parseFloat(m[0].replace(/,/g,'')) : null;
   let category = null;
