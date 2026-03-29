@@ -400,6 +400,26 @@ module.exports = async (req, res) => {
         } catch { await replyToLine(replyToken, '❌ Could not delete.'); }
         continue;
       }
+      
+// Show categories
+if (low === 'category' || low === 'categories' || low === 'show category' || low === 'show categories' || low === 'หมวด' || low === 'ประเภท') {
+  const customCats = await getCustomCategories();
+  const customIncome = (customCats || []).filter(c => c.type === 'income');
+  const customExpense = (customCats || []).filter(c => c.type === 'expense');
+
+  let msg = `📁 Your Categories\n──────────────\n`;
+  msg += `💚 INCOME:\n`;
+  INCOME_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
+  customIncome.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
+
+  msg += `\n🔴 EXPENSE:\n`;
+  EXPENSE_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
+  customExpense.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
+
+  msg += `\n⭐ = your custom categories`;
+  await replyToLine(replyToken, msg);
+  continue;
+}
 
       // Summary
       if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
