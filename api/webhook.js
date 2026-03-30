@@ -469,7 +469,7 @@ if (low === 'last month' || low === 'เดือนที่แล้ว') {
       // Help
       if (low === 'help' || low === 'ช่วย') {
         await replyToLine(replyToken,
-          `🤖 FinanceFlow Commands:\n──────────────\n• food 350 lunch → log expense\n• salary 50000 → log income\n• summary → see balance\n• category → show all categories\n• cancel → delete last entry\n• help → this menu`
+          `🤖 FinanceFlow Commands:\n──────────────\n• food 350 lunch → log expense\n• salary 50000 → log income\n• summary → all time totals\n• this month → this month totals\n• last month → last month totals\n• category → show all categories\n• cancel → delete last entry\n• help → this menu`
         );
         continue;
       }
