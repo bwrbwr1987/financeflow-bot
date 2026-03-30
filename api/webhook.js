@@ -269,9 +269,22 @@ async function parseMessage(text) {
   return { type, amount, category, detail, confident };
 }
 
-async function getSummary() {
-  const data = await dbGet('transactions?select=type,amount');
-  const income = data.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+async function getSummary(period = 'all') {
+  let query = 'transactions?select=type,amount,date';
+  const now = new Date();
+
+  if (period === 'this_month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    query += `&date=gte.${start}&date=lte.${end}`;
+  } else if (period === 'last_month') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+    query += `&date=gte.${start}&date=lte.${end}`;
+  }
+
+  const data = await dbGet(query);
+  const income  = data.filter(t => t.type === 'income') .reduce((s, t) => s + Number(t.amount), 0);
   const expense = data.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
   const balance = income - expense;
   const savings = income > 0 ? ((balance / income) * 100).toFixed(1) : 0;
@@ -421,14 +434,37 @@ if (low === 'category' || low === 'categories' || low === 'show category' || low
   continue;
 }
 
-      // Summary
-      if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
-        const s = await getSummary();
-        await replyToLine(replyToken,
-          `📊 Your Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
-        );
-        continue;
-      }
+      // Summary - all time
+if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
+  const s = await getSummary('all');
+  await replyToLine(replyToken,
+    `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+  );
+  continue;
+}
+
+// This month summary
+if (low === 'this month' || low === 'เดือนนี้' || low === 'monthly' || low === 'month') {
+  const s = await getSummary('this_month');
+  const now = new Date();
+  const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  await replyToLine(replyToken,
+    `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+  );
+  continue;
+}
+
+// Last month summary
+if (low === 'last month' || low === 'เดือนที่แล้ว') {
+  const s = await getSummary('last_month');
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const monthName = lastMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  await replyToLine(replyToken,
+    `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+  );
+  continue;
+}
 
       // Help
       if (low === 'help' || low === 'ช่วย') {
