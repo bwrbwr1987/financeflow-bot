@@ -442,7 +442,34 @@ if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 
   );
   continue;
 }
+      
+// Pick any month from list
+if (low === 'summary month' || low === 'pick month' || low === 'เลือกเดือน') {
+  const data = await dbGet('transactions?select=date&order=date.desc');
+  const months = [...new Set((data||[]).map(t => {
+    const d = new Date(t.date);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }))].slice(0, 6);
 
+  if (!months.length) {
+    await replyToLine(replyToken, '❌ No transactions found yet.');
+    continue;
+  }
+
+  await setSession(userId, 'ask_month', { months });
+
+  let msg = `📅 Which month?\n──────────────\n`;
+  months.forEach((m, i) => {
+    const [y, mo] = m.split('-');
+    const label = new Date(parseInt(y), parseInt(mo)-1, 1)
+      .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    msg += `${i+1}. ${label}\n`;
+  });
+  msg += `${months.length+1}. All time`;
+  await replyToLine(replyToken, msg);
+  continue;
+}
+      
 // This month summary
 if (low === 'this month' || low === 'เดือนนี้' || low === 'monthly' || low === 'month') {
   const s = await getSummary('this_month');
