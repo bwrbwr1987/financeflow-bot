@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
     }
 
     log.push('2. Reading image from GitHub...');
-    const imgRes = await fetch('https://raw.githubusercontent.com/bwrbwr1987-47/financeflow-bot/main/richmenu.png');
+    const imgRes = await fetch('https://raw.githubusercontent.com/bwrbwr1987/financeflow-bot/main/richmenu.png');
     const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     log.push('Image size: ' + imgBuffer.length + ' bytes');
 
