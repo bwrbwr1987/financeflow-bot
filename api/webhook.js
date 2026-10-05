@@ -138,7 +138,6 @@ const BUILT_IN_CATS = {
   'เกม':'entertainment',
   'ท่องเที่ยว':'entertainment',
   'เที่ยว':'entertainment',
-  'ท่องเที่ยว':'entertainment',
   'สวนสนุก':'entertainment',
   'ร้องคาราโอเกะ':'entertainment',
   'คาราโอเกะ':'entertainment',
@@ -262,7 +261,7 @@ async function parseMessage(text) {
 
   if (!category) {
     category = type === 'income' ? 'other_income' : 'other_expense';
-    confident = false; // not sure!
+    confident = false;
   }
 
   const detail = text.replace(/[\d,]+(\.\d+)?/g, '').replace(/\b(baht|thb)\b/gi, '').trim() || text;
@@ -337,6 +336,40 @@ module.exports = async (req, res) => {
         const state = session.state;
         const data = session.data;
 
+        // State: waiting for month choice
+        if (state === 'ask_month') {
+          const months = data.months;
+          const choice = parseInt(text);
+          const allTimeIndex = months.length + 1;
+
+          if (choice === allTimeIndex) {
+            const s = await getSummary('all');
+            await clearSession(userId);
+            await replyToLine(replyToken,
+              `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+            );
+          } else if (choice >= 1 && choice <= months.length) {
+            const selectedMonth = months[choice - 1];
+            const [y, mo] = selectedMonth.split('-');
+            const start = new Date(parseInt(y), parseInt(mo)-1, 1).toISOString();
+            const end = new Date(parseInt(y), parseInt(mo), 0, 23, 59, 59).toISOString();
+            const txData = await dbGet(`transactions?select=type,amount,date&date=gte.${start}&date=lte.${end}`);
+            const income  = txData.filter(t => t.type==='income') .reduce((s,t)=>s+Number(t.amount),0);
+            const expense = txData.filter(t => t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+            const balance = income - expense;
+            const savings = income > 0 ? ((balance/income)*100).toFixed(1) : 0;
+            const monthName = new Date(parseInt(y), parseInt(mo)-1, 1)
+              .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+            await clearSession(userId);
+            await replyToLine(replyToken,
+              `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(income)}\n🔴 Expense: ฿${fmt(expense)}\n⚖️ Balance: ฿${fmt(balance)}\n💰 Savings: ${savings}%\n📝 Total:   ${txData.length} transactions`
+            );
+          } else {
+            await replyToLine(replyToken, `Please choose a number between 1 and ${allTimeIndex}`);
+          }
+          continue;
+        }
+
         // State: waiting for income/expense choice
         if (state === 'ask_type') {
           if (text === '1') {
@@ -389,47 +422,13 @@ module.exports = async (req, res) => {
         if (state === 'ask_new_category_name') {
           const categoryName = text;
           const type = data.type;
-
-          // Save the new category with the original keywords
           const keywords = data.detail || '';
           await saveCustomCategory(categoryName, type, keywords);
           await saveAndReply(replyToken, userId, data, type, categoryName, true);
           continue;
         }
       }
-        // State: waiting for month choice
-        if (state === 'ask_month') {
-          const months = data.months;
-          const choice = parseInt(text);
-          const allTimeIndex = months.length + 1;
 
-          if (choice === allTimeIndex) {
-            const s = await getSummary('all');
-            await clearSession(userId);
-            await replyToLine(replyToken,
-              `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
-            );
-          } else if (choice >= 1 && choice <= months.length) {
-            const selectedMonth = months[choice - 1];
-            const [y, mo] = selectedMonth.split('-');
-            const start = new Date(parseInt(y), parseInt(mo)-1, 1).toISOString();
-            const end = new Date(parseInt(y), parseInt(mo), 0, 23, 59, 59).toISOString();
-            const txData = await dbGet(`transactions?select=type,amount,date&date=gte.${start}&date=lte.${end}`);
-            const income  = txData.filter(t => t.type==='income') .reduce((s,t)=>s+Number(t.amount),0);
-            const expense = txData.filter(t => t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
-            const balance = income - expense;
-            const savings = income > 0 ? ((balance/income)*100).toFixed(1) : 0;
-            const monthName = new Date(parseInt(y), parseInt(mo)-1, 1)
-              .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-            await clearSession(userId);
-            await replyToLine(replyToken,
-              `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(income)}\n🔴 Expense: ฿${fmt(expense)}\n⚖️ Balance: ฿${fmt(balance)}\n💰 Savings: ${savings}%\n📝 Total:   ${txData.length} transactions`
-            );
-          } else {
-            await replyToLine(replyToken, `Please choose a number between 1 and ${allTimeIndex}`);
-          }
-          continue;
-        }
       // ── No session — handle fresh messages ──
 
       // Cancel last transaction
@@ -445,85 +444,85 @@ module.exports = async (req, res) => {
         } catch { await replyToLine(replyToken, '❌ Could not delete.'); }
         continue;
       }
-      
-// Show categories
-if (low === 'category' || low === 'categories' || low === 'show category' || low === 'show categories' || low === 'หมวด' || low === 'ประเภท') {
-  const customCats = await getCustomCategories();
-  const customIncome = (customCats || []).filter(c => c.type === 'income');
-  const customExpense = (customCats || []).filter(c => c.type === 'expense');
 
-  let msg = `📁 Your Categories\n──────────────\n`;
-  msg += `💚 INCOME:\n`;
-  INCOME_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
-  customIncome.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
+      // Show categories
+      if (low === 'category' || low === 'categories' || low === 'show category' || low === 'show categories' || low === 'หมวด' || low === 'ประเภท') {
+        const customCats = await getCustomCategories();
+        const customIncome = (customCats || []).filter(c => c.type === 'income');
+        const customExpense = (customCats || []).filter(c => c.type === 'expense');
 
-  msg += `\n🔴 EXPENSE:\n`;
-  EXPENSE_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
-  customExpense.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
+        let msg = `📁 Your Categories\n──────────────\n`;
+        msg += `💚 INCOME:\n`;
+        INCOME_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
+        customIncome.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
 
-  msg += `\n⭐ = your custom categories`;
-  await replyToLine(replyToken, msg);
-  continue;
-}
+        msg += `\n🔴 EXPENSE:\n`;
+        EXPENSE_CATS.forEach(c => { msg += `  • ${CAT_LABELS[c]||c}\n`; });
+        customExpense.forEach(c => { msg += `  • ${c.name} ⭐\n`; });
+
+        msg += `\n⭐ = your custom categories`;
+        await replyToLine(replyToken, msg);
+        continue;
+      }
 
       // Summary - all time
-if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
-  const s = await getSummary('all');
-  await replyToLine(replyToken,
-    `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
-  );
-  continue;
-}
-      
-// Pick any month from list
-if (low === 'summary month' || low === 'pick month' || low === 'เลือกเดือน') {
-  const data = await dbGet('transactions?select=date&order=date.desc');
-  const months = [...new Set((data||[]).map(t => {
-    const d = new Date(t.date);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-  }))].slice(0, 6);
+      if (low === 'summary' || low === 'สรุป' || low === 'balance' || low === 'ยอด') {
+        const s = await getSummary('all');
+        await replyToLine(replyToken,
+          `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+        );
+        continue;
+      }
 
-  if (!months.length) {
-    await replyToLine(replyToken, '❌ No transactions found yet.');
-    continue;
-  }
+      // Pick any month from list
+      if (low === 'summary month' || low === 'pick month' || low === 'เลือกเดือน') {
+        const txData = await dbGet('transactions?select=date&order=date.desc');
+        const months = [...new Set((txData||[]).map(t => {
+          const d = new Date(t.date);
+          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        }))].slice(0, 6);
 
-  await setSession(userId, 'ask_month', { months });
+        if (!months.length) {
+          await replyToLine(replyToken, '❌ No transactions found yet.');
+          continue;
+        }
 
-  let msg = `📅 Which month?\n──────────────\n`;
-  months.forEach((m, i) => {
-    const [y, mo] = m.split('-');
-    const label = new Date(parseInt(y), parseInt(mo)-1, 1)
-      .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-    msg += `${i+1}. ${label}\n`;
-  });
-  msg += `${months.length+1}. All time`;
-  await replyToLine(replyToken, msg);
-  continue;
-}
-      
-// This month summary
-if (low === 'this month' || low === 'เดือนนี้' || low === 'monthly' || low === 'month') {
-  const s = await getSummary('this_month');
-  const now = new Date();
-  const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  await replyToLine(replyToken,
-    `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
-  );
-  continue;
-}
+        await setSession(userId, 'ask_month', { months });
 
-// Last month summary
-if (low === 'last month' || low === 'เดือนที่แล้ว') {
-  const s = await getSummary('last_month');
-  const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const monthName = lastMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  await replyToLine(replyToken,
-    `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
-  );
-  continue;
-}
+        let msg = `📅 Which month?\n──────────────\n`;
+        months.forEach((m, i) => {
+          const [y, mo] = m.split('-');
+          const label = new Date(parseInt(y), parseInt(mo)-1, 1)
+            .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+          msg += `${i+1}. ${label}\n`;
+        });
+        msg += `${months.length+1}. All time`;
+        await replyToLine(replyToken, msg);
+        continue;
+      }
+
+      // This month summary
+      if (low === 'this month' || low === 'เดือนนี้' || low === 'monthly' || low === 'month') {
+        const s = await getSummary('this_month');
+        const now = new Date();
+        const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        await replyToLine(replyToken,
+          `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+        );
+        continue;
+      }
+
+      // Last month summary
+      if (low === 'last month' || low === 'เดือนที่แล้ว') {
+        const s = await getSummary('last_month');
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const monthName = lastMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        await replyToLine(replyToken,
+          `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+        );
+        continue;
+      }
 
       // Help
       if (low === 'help' || low === 'ช่วย') {
@@ -575,7 +574,6 @@ async function saveAndReply(replyToken, userId, data, type, category, isNewCat =
     });
     await clearSession(userId);
 
-    // Get both this month and all time balances
     const sAll = await getSummary('all');
     const sMonth = await getSummary('this_month');
 
