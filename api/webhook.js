@@ -370,9 +370,16 @@ module.exports = async (req, res) => {
           continue;
         }
 
-        // State: waiting for income/expense choice
+                // State: waiting for income/expense choice
         if (state === 'ask_type') {
-          if (text === '1') {
+          // Allow escape commands even while in session
+          if (low === 'cancel' || low === 'ยกเลิก' || low === 'ลบ' ||
+              low === 'summary' || low === 'สรุป' || low === 'balance' ||
+              low === 'this month' || low === 'last month' || low === 'help' ||
+              low === 'category' || low === 'pick month' || low === 'summary month') {
+            await clearSession(userId);
+            // Fall through to fresh message handling below
+          } else if (text === '1') {
             await setSession(userId, 'ask_category', { ...data, type: 'income' });
             const customCats = await getCustomCategories();
             const customIncome = customCats.filter(c => c.type === 'income');
@@ -381,6 +388,7 @@ module.exports = async (req, res) => {
             customIncome.forEach((c, i) => { menu += `${INCOME_CATS.length+i+1}. ${c.name} ⭐\n`; });
             menu += `${INCOME_CATS.length+customIncome.length+1}. ✨ Create new category`;
             await replyToLine(replyToken, menu);
+            continue;
           } else if (text === '2') {
             await setSession(userId, 'ask_category', { ...data, type: 'expense' });
             const customCats = await getCustomCategories();
@@ -390,10 +398,11 @@ module.exports = async (req, res) => {
             customExpense.forEach((c, i) => { menu += `${EXPENSE_CATS.length+i+1}. ${c.name} ⭐\n`; });
             menu += `${EXPENSE_CATS.length+customExpense.length+1}. ✨ Create new category`;
             await replyToLine(replyToken, menu);
+            continue;
           } else {
-            await replyToLine(replyToken, 'Please reply 1 for Income 💚 or 2 for Expense 🔴');
+            await replyToLine(replyToken, 'Please reply 1 for Income 💚 or 2 for Expense 🔴\n\nOr tap any menu button to cancel.');
+            continue;
           }
-          continue;
         }
 
         // State: waiting for category choice
