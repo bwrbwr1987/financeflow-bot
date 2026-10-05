@@ -397,7 +397,39 @@ module.exports = async (req, res) => {
           continue;
         }
       }
+        // State: waiting for month choice
+        if (state === 'ask_month') {
+          const months = data.months;
+          const choice = parseInt(text);
+          const allTimeIndex = months.length + 1;
 
+          if (choice === allTimeIndex) {
+            const s = await getSummary('all');
+            await clearSession(userId);
+            await replyToLine(replyToken,
+              `📊 All Time Summary\n──────────────\n💚 Income:  ฿${fmt(s.income)}\n🔴 Expense: ฿${fmt(s.expense)}\n⚖️ Balance: ฿${fmt(s.balance)}\n💰 Savings: ${s.savings}%\n📝 Total:   ${s.count} transactions`
+            );
+          } else if (choice >= 1 && choice <= months.length) {
+            const selectedMonth = months[choice - 1];
+            const [y, mo] = selectedMonth.split('-');
+            const start = new Date(parseInt(y), parseInt(mo)-1, 1).toISOString();
+            const end = new Date(parseInt(y), parseInt(mo), 0, 23, 59, 59).toISOString();
+            const txData = await dbGet(`transactions?select=type,amount,date&date=gte.${start}&date=lte.${end}`);
+            const income  = txData.filter(t => t.type==='income') .reduce((s,t)=>s+Number(t.amount),0);
+            const expense = txData.filter(t => t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+            const balance = income - expense;
+            const savings = income > 0 ? ((balance/income)*100).toFixed(1) : 0;
+            const monthName = new Date(parseInt(y), parseInt(mo)-1, 1)
+              .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+            await clearSession(userId);
+            await replyToLine(replyToken,
+              `📅 ${monthName}\n──────────────\n💚 Income:  ฿${fmt(income)}\n🔴 Expense: ฿${fmt(expense)}\n⚖️ Balance: ฿${fmt(balance)}\n💰 Savings: ${savings}%\n📝 Total:   ${txData.length} transactions`
+            );
+          } else {
+            await replyToLine(replyToken, `Please choose a number between 1 and ${allTimeIndex}`);
+          }
+          continue;
+        }
       // ── No session — handle fresh messages ──
 
       // Cancel last transaction
