@@ -17,11 +17,11 @@ const richMenuBody = {
   ]
 };
 
-function lineRequest(method, path, data, contentType = 'application/json') {
+function lineRequest(hostname, method, path, data, contentType = 'application/json') {
   return new Promise((resolve, reject) => {
-    const body = contentType === 'application/json' ? JSON.stringify(data) : data;
+    const body = (data instanceof Buffer) ? data : (data ? JSON.stringify(data) : null);
     const options = {
-      hostname: 'api.line.me',
+      hostname,
       path,
       method,
       headers: {
@@ -31,9 +31,12 @@ function lineRequest(method, path, data, contentType = 'application/json') {
       }
     };
     const req = https.request(options, res => {
-      let out = '';
-      res.on('data', d => out += d);
-      res.on('end', () => { try { resolve(JSON.parse(out)); } catch { resolve(out); } });
+      const chunks = [];
+      res.on('data', d => chunks.push(d));
+      res.on('end', () => {
+        const out = Buffer.concat(chunks).toString();
+        try { resolve(JSON.parse(out)); } catch { resolve(out); }
+      });
     });
     req.on('error', reject);
     if (body) req.write(body);
@@ -45,11 +48,10 @@ module.exports = async (req, res) => {
   const log = [];
   try {
     log.push('1. Creating rich menu...');
-    const menu = await lineRequest('POST', '/v2/bot/richmenu', richMenuBody);
+    const menu = await lineRequest('api.line.me', 'POST', '/v2/bot/richmenu', richMenuBody);
     log.push('Result: ' + JSON.stringify(menu));
-
     if (!menu.richMenuId) {
-      return res.status(500).send('<pre>' + log.join('\n') + '\n❌ No richMenuId returned</pre>');
+      return res.status(500).send('<pre>' + log.join('\n') + '\n❌ No richMenuId</pre>');
     }
 
     log.push('2. Reading image from GitHub...');
@@ -57,12 +59,12 @@ module.exports = async (req, res) => {
     const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     log.push('Image size: ' + imgBuffer.length + ' bytes');
 
-    log.push('3. Uploading image...');
-    const upload = await lineRequest('POST', `/v2/bot/richmenu/${menu.richMenuId}/content`, imgBuffer, 'image/png');
+    log.push('3. Uploading image to api-data.line.me...');
+    const upload = await lineRequest('api-data.line.me', 'POST', `/v2/bot/richmenu/${menu.richMenuId}/content`, imgBuffer, 'image/png');
     log.push('Upload result: ' + JSON.stringify(upload));
 
     log.push('4. Setting as default...');
-    const def = await lineRequest('POST', `/v2/bot/user/all/richmenu/${menu.richMenuId}`, null);
+    const def = await lineRequest('api.line.me', 'POST', `/v2/bot/user/all/richmenu/${menu.richMenuId}`, null);
     log.push('Default result: ' + JSON.stringify(def));
 
     log.push('✅ Done! Rich menu is live.');
