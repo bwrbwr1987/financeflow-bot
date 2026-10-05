@@ -336,12 +336,34 @@ module.exports = async (req, res) => {
         const state = session.state;
         const data = session.data;
 
+                // State: waiting for year choice
+        if (state === 'ask_year') {
+          const years = data.years;
+          const choice = parseInt(text);
+          if (choice >= 1 && choice <= years.length) {
+            const selectedYear = years[choice - 1];
+            const months = data.allMonths.filter(m => m.startsWith(selectedYear));
+            await setSession(userId, 'ask_month', { months });
+            let msg = `📅 ${selectedYear} — which month?\n──────────────\n`;
+            months.forEach((m, i) => {
+              const [y, mo] = m.split('-');
+              const label = new Date(parseInt(y), parseInt(mo)-1, 1)
+                .toLocaleDateString('en-GB', { month: 'long' });
+              msg += `${i+1}. ${label}\n`;
+            });
+            msg += `${months.length+1}. All time`;
+            await replyToLine(replyToken, msg);
+          } else {
+            await replyToLine(replyToken, `Please choose a number between 1 and ${years.length}`);
+          }
+          continue;
+        }
+
         // State: waiting for month choice
         if (state === 'ask_month') {
           const months = data.months;
           const choice = parseInt(text);
           const allTimeIndex = months.length + 1;
-
           if (choice === allTimeIndex) {
             const s = await getSummary('all');
             await clearSession(userId);
@@ -354,7 +376,7 @@ module.exports = async (req, res) => {
             const start = new Date(parseInt(y), parseInt(mo)-1, 1).toISOString();
             const end = new Date(parseInt(y), parseInt(mo), 0, 23, 59, 59).toISOString();
             const txData = await dbGet(`transactions?select=type,amount,date&date=gte.${start}&date=lte.${end}`);
-            const income  = txData.filter(t => t.type==='income') .reduce((s,t)=>s+Number(t.amount),0);
+            const income  = txData.filter(t => t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
             const expense = txData.filter(t => t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
             const balance = income - expense;
             const savings = income > 0 ? ((balance/income)*100).toFixed(1) : 0;
@@ -483,30 +505,39 @@ module.exports = async (req, res) => {
         continue;
       }
 
-      // Pick any month from list
+            // Pick any month from list
       if (low === 'summary month' || low === 'pick month' || low === 'เลือกเดือน') {
         const txData = await dbGet('transactions?select=date&order=date.desc');
-        const months = [...new Set((txData||[]).map(t => {
+        const allMonths = [...new Set((txData||[]).map(t => {
           const d = new Date(t.date);
           return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        }))].slice(0, 6);
+        }))];
 
-        if (!months.length) {
+        if (!allMonths.length) {
           await replyToLine(replyToken, '❌ No transactions found yet.');
           continue;
         }
 
-        await setSession(userId, 'ask_month', { months });
+        const years = [...new Set(allMonths.map(m => m.split('-')[0]))].sort().reverse();
 
-        let msg = `📅 Which month?\n──────────────\n`;
-        months.forEach((m, i) => {
-          const [y, mo] = m.split('-');
-          const label = new Date(parseInt(y), parseInt(mo)-1, 1)
-            .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-          msg += `${i+1}. ${label}\n`;
-        });
-        msg += `${months.length+1}. All time`;
-        await replyToLine(replyToken, msg);
+        if (years.length === 1) {
+          const months = allMonths.filter(m => m.startsWith(years[0]));
+          await setSession(userId, 'ask_month', { months });
+          let msg = `📅 ${years[0]} — which month?\n──────────────\n`;
+          months.forEach((m, i) => {
+            const [y, mo] = m.split('-');
+            const label = new Date(parseInt(y), parseInt(mo)-1, 1)
+              .toLocaleDateString('en-GB', { month: 'long' });
+            msg += `${i+1}. ${label}\n`;
+          });
+          msg += `${months.length+1}. All time`;
+          await replyToLine(replyToken, msg);
+        } else {
+          await setSession(userId, 'ask_year', { years, allMonths });
+          let msg = `📅 Which year?\n──────────────\n`;
+          years.forEach((y, i) => { msg += `${i+1}. ${y}\n`; });
+          await replyToLine(replyToken, msg);
+        }
         continue;
       }
 
