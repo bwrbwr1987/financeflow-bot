@@ -511,23 +511,37 @@ if (low === 'last month' || low === 'เดือนที่แล้ว') {
 async function saveAndReply(replyToken, userId, data, type, category, isNewCat = false) {
   try {
     await dbPost('transactions', {
-      type,
-      amount: data.amount,
-      category,
-      detail: data.detail,
+      type, amount: data.amount, category, detail: data.detail,
       date: new Date().toISOString()
     });
-
     await clearSession(userId);
-    const s = await getSummary();
+
+    // Get both this month and all time balances
+    const sAll = await getSummary('all');
+    const sMonth = await getSummary('this_month');
+
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     const emoji = type === 'income' ? '💚' : '🔴';
     const newCatMsg = isNewCat ? '\n🧠 New category saved! I\'ll remember this next time.' : '';
 
+    const monthBalance = sMonth.income - sMonth.expense;
+    const monthEmoji = monthBalance >= 0 ? '💚' : '🔴';
+    const netEmoji = sAll.balance >= 0 ? '💚' : '🔴';
+
     await replyToLine(replyToken,
-      `${emoji} ${type === 'income' ? 'Income' : 'Expense'} saved!\n──────────────\n💵 Amount:   ฿${Number(data.amount).toLocaleString('th-TH')}\n📁 Category: ${category}\n📝 Note:     ${data.detail}\n──────────────\n⚖️ Balance:  ฿${Number(s.balance).toLocaleString('th-TH')}${newCatMsg}`
+      `${emoji} ${type === 'income' ? 'Income' : 'Expense'} saved!\n` +
+      `──────────────\n` +
+      `💵 Amount:   ฿${fmt(data.amount)}\n` +
+      `📁 Category: ${category}\n` +
+      `📝 Note:     ${data.detail}\n` +
+      `──────────────\n` +
+      `📅 ${monthName}: ${monthEmoji}฿${fmt(Math.abs(monthBalance))}\n` +
+      `💰 Net balance: ${netEmoji}฿${fmt(Math.abs(sAll.balance))}` +
+      `${newCatMsg}`
     );
-  } catch(e) {
+  } catch {
     await clearSession(userId);
-    await replyToLine(replyToken, `❌ Save failed. Please try again.`);
+    await replyToLine(replyToken, '❌ Save failed. Please try again.');
   }
 }
