@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
     log.push('Upload result: ' + JSON.stringify(upload));
 
     log.push('4. Setting as default...');
-    const def = await lineRequest('POST', `/v2/bot/setDefaultRichMenu/${menu.richMenuId}`, null);
+    const def = await lineRequest('POST', `/v2/bot/user/all/richmenu/${menu.richMenuId}`, null);
     log.push('Default result: ' + JSON.stringify(def));
 
     log.push('✅ Done! Rich menu is live.');
